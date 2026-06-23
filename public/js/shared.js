@@ -20,16 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup Right Actions Menu Toggle for Mobile
   const menuToggle = document.getElementById('header-menu-toggle');
-  const actionsWrapper = document.getElementById('header-actions-wrapper');
-  if (menuToggle && actionsWrapper) {
+  const appContainer = document.querySelector('.app-container');
+  if (menuToggle && appContainer) {
     menuToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      actionsWrapper.classList.toggle('open');
-    });
-    document.addEventListener('click', (e) => {
-      if (!actionsWrapper.contains(e.target) && e.target !== menuToggle) {
-        actionsWrapper.classList.remove('open');
-      }
+      appContainer.classList.toggle('right-sidebar-open');
+      appContainer.classList.remove('sidebar-open'); // Close left sidebar if open
     });
   }
 
@@ -41,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup Sidebar Collapsible
   setupSidebarToggle();
+
+  // Setup Mobile Swipe Gestures
+  setupMobileSwipeGestures();
 
   // Setup Draggable Labels (Infinite Rollers)
   setupDraggableLabels();
@@ -2300,11 +2299,16 @@ function updateThemeIcon() {
   const currentTheme = document.documentElement.getAttribute('data-theme');
   const btns = document.querySelectorAll('.theme-toggle-btn');
 
-  const sunIcon = `<svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41zm-12.37 12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41z"/></svg>`;
-  const moonIcon = `<svg viewBox="0 0 24 24"><path d="M9.37 5.51c-.18-.64-.93-.86-1.43-.44-1.97 1.67-3.22 4.14-3.22 6.93 0 4.97 4.03 9 9 9 2.79 0 5.26-1.25 6.93-3.22.42-.5.2-1.25-.44-1.43-4.9-.73-8.87-4.7-9.6-9.6z"/></svg>`;
+  const sunIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41zm-12.37 12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41z"/></svg>`;
+  const moonIcon = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9.37 5.51c-.18-.64-.93-.86-1.43-.44-1.97 1.67-3.22 4.14-3.22 6.93 0 4.97 4.03 9 9 9 2.79 0 5.26-1.25 6.93-3.22.42-.5.2-1.25-.44-1.43-4.9-.73-8.87-4.7-9.6-9.6z"/></svg>`;
 
   btns.forEach(btn => {
-    btn.innerHTML = currentTheme === 'dark' ? sunIcon : moonIcon;
+    const placeholder = btn.querySelector('.theme-icon-placeholder');
+    if (placeholder) {
+      placeholder.innerHTML = currentTheme === 'dark' ? sunIcon : moonIcon;
+    } else {
+      btn.innerHTML = currentTheme === 'dark' ? sunIcon : moonIcon;
+    }
   });
 }
 
@@ -2415,6 +2419,7 @@ function setupSidebarToggle() {
 
   backdrop.addEventListener('click', () => {
     appContainer.classList.remove('sidebar-open');
+    appContainer.classList.remove('right-sidebar-open');
   });
 
   const sidebar = document.getElementById('global-sidebar');
@@ -2561,6 +2566,195 @@ function setupSidebarToggle() {
     handle.addEventListener('mousedown', onMouseDown);
     handle.addEventListener('touchstart', onMouseDown, { passive: true });
   }
+}
+
+function setupMobileSwipeGestures() {
+  const appContainer = document.querySelector('.app-container');
+  if (!appContainer) return;
+
+  const leftSidebar = document.getElementById('global-sidebar');
+  const rightSidebar = document.getElementById('header-actions-wrapper');
+  
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let activeSwipeType = null; // 'left-open', 'left-close', 'right-open', 'right-close', 'ignored'
+  let isSwipeDragging = false;
+  
+  const getBackdrop = () => {
+    return document.querySelector('.sidebar-backdrop');
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    
+    // Ignore swipe starting on range sliders, select, buttons, or links
+    if (e.target.closest('input[type="range"], select, .no-swipe, button, a')) {
+      activeSwipeType = 'ignored';
+      return;
+    }
+
+    const clientX = e.touches[0].clientX;
+    const clientY = e.touches[0].clientY;
+    
+    touchStartX = clientX;
+    touchStartY = clientY;
+    activeSwipeType = null;
+    isSwipeDragging = false;
+
+    const isLeftOpen = appContainer.classList.contains('sidebar-open');
+    const isRightOpen = appContainer.classList.contains('right-sidebar-open');
+
+    // Detect potential swipe starts
+    if (window.innerWidth <= 1100) {
+      if (isLeftOpen) {
+        activeSwipeType = 'left-close';
+      } else if (!isRightOpen && clientX < 50) {
+        activeSwipeType = 'left-open';
+      }
+    }
+
+    if (window.innerWidth <= 768 && !activeSwipeType) {
+      if (isRightOpen) {
+        activeSwipeType = 'right-close';
+      } else if (!isLeftOpen && (window.innerWidth - clientX) < 50) {
+        activeSwipeType = 'right-open';
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 1 || activeSwipeType === 'ignored') return;
+
+    const clientX = e.touches[0].clientX;
+    const clientY = e.touches[0].clientY;
+    
+    const dx = clientX - touchStartX;
+    const dy = clientY - touchStartY;
+
+    if (!isSwipeDragging && activeSwipeType !== 'ignored') {
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          if (activeSwipeType === 'left-open' && dx > 0) {
+            isSwipeDragging = true;
+          } else if (activeSwipeType === 'left-close' && dx < 0) {
+            isSwipeDragging = true;
+          } else if (activeSwipeType === 'right-open' && dx < 0) {
+            isSwipeDragging = true;
+          } else if (activeSwipeType === 'right-close' && dx > 0) {
+            isSwipeDragging = true;
+          } else {
+            activeSwipeType = 'ignored';
+          }
+
+          if (isSwipeDragging) {
+            appContainer.classList.add('sidebar-dragging-active');
+            const backdrop = getBackdrop();
+            if (backdrop) {
+              backdrop.style.display = 'block';
+            }
+          }
+        } else {
+          activeSwipeType = 'ignored';
+        }
+      }
+    }
+
+    if (isSwipeDragging) {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      const backdrop = getBackdrop();
+      
+      if (activeSwipeType === 'left-open') {
+        if (leftSidebar) {
+          const offset = Math.min(0, -260 + dx);
+          leftSidebar.style.transform = `translateX(${offset}px)`;
+          if (backdrop) {
+            backdrop.style.opacity = Math.min(1, dx / 260);
+          }
+        }
+      } else if (activeSwipeType === 'left-close') {
+        if (leftSidebar) {
+          const offset = Math.max(-260, Math.min(0, dx));
+          leftSidebar.style.transform = `translateX(${offset}px)`;
+          if (backdrop) {
+            backdrop.style.opacity = Math.max(0, 1 + dx / 260);
+          }
+        }
+      } else if (activeSwipeType === 'right-open') {
+        if (rightSidebar) {
+          const offset = Math.max(0, 260 + dx);
+          rightSidebar.style.transform = `translateX(${offset}px)`;
+          if (backdrop) {
+            backdrop.style.opacity = Math.min(1, -dx / 260);
+          }
+        }
+      } else if (activeSwipeType === 'right-close') {
+        if (rightSidebar) {
+          const offset = Math.min(260, Math.max(0, dx));
+          rightSidebar.style.transform = `translateX(${offset}px)`;
+          if (backdrop) {
+            backdrop.style.opacity = Math.max(0, 1 - dx / 260);
+          }
+        }
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', (e) => {
+    if (activeSwipeType === 'ignored') {
+      activeSwipeType = null;
+      return;
+    }
+    
+    if (isSwipeDragging) {
+      appContainer.classList.remove('sidebar-dragging-active');
+      
+      if (leftSidebar) leftSidebar.style.transform = '';
+      if (rightSidebar) rightSidebar.style.transform = '';
+      const backdrop = getBackdrop();
+      if (backdrop) {
+        backdrop.style.opacity = '';
+        backdrop.style.display = '';
+      }
+
+      const clientX = e.changedTouches[0].clientX;
+      const dx = clientX - touchStartX;
+      const threshold = 100;
+
+      if (activeSwipeType === 'left-open') {
+        if (dx > threshold) {
+          appContainer.classList.add('sidebar-open');
+          appContainer.classList.remove('right-sidebar-open');
+        } else {
+          appContainer.classList.remove('sidebar-open');
+        }
+      } else if (activeSwipeType === 'left-close') {
+        if (dx < -threshold) {
+          appContainer.classList.remove('sidebar-open');
+        } else {
+          appContainer.classList.add('sidebar-open');
+        }
+      } else if (activeSwipeType === 'right-open') {
+        if (dx < -threshold) {
+          appContainer.classList.add('right-sidebar-open');
+          appContainer.classList.remove('sidebar-open');
+        } else {
+          appContainer.classList.remove('right-sidebar-open');
+        }
+      } else if (activeSwipeType === 'right-close') {
+        if (dx > threshold) {
+          appContainer.classList.remove('right-sidebar-open');
+        } else {
+          appContainer.classList.add('right-sidebar-open');
+        }
+      }
+    }
+
+    activeSwipeType = null;
+    isSwipeDragging = false;
+  }, { passive: true });
 }
 
 function setupDraggableLabels() {
