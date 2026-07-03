@@ -29,6 +29,260 @@ const chartResizeObserver = new ResizeObserver(entries => {
   });
 });
 
+const CurrencyRegistry = {
+  INR: { code: 'INR', symbol: '₹', defaultLocale: 'en-IN', system: 'indian', defaultInflation: 6 },
+  USD: { code: 'USD', symbol: '$', defaultLocale: 'en-US', system: 'international', defaultInflation: 3 },
+  GBP: { code: 'GBP', symbol: '£', defaultLocale: 'en-GB', system: 'international', defaultInflation: 3 },
+  EUR: { code: 'EUR', symbol: '€', defaultLocale: 'de-DE', system: 'international', defaultInflation: 2 },
+  AUD: { code: 'AUD', symbol: 'A$', defaultLocale: 'en-AU', system: 'international', defaultInflation: 3 },
+  CAD: { code: 'CAD', symbol: 'C$', defaultLocale: 'en-CA', system: 'international', defaultInflation: 3 }
+};
+
+const CurrencyManager = {
+  formattersCache: new Map(),
+  MAX_CACHE_SIZE: 64,
+
+  getPreferences() {
+    try {
+      const stored = localStorage.getItem('moneyinfuture_user_prefs');
+      const prefs = stored ? JSON.parse(stored) : {};
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const urlCurrency = params.get('currency') || params.get('curr');
+        if (urlCurrency && ['INR', 'USD', 'GBP', 'EUR', 'AUD', 'CAD'].includes(urlCurrency.toUpperCase())) {
+          prefs.currency = urlCurrency.toUpperCase();
+        }
+      }
+      return prefs;
+    } catch (e) {
+      return {};
+    }
+  },
+
+  setPreference(key, value) {
+    try {
+      const prefs = this.getPreferences();
+      prefs[key] = value;
+      localStorage.setItem('moneyinfuture_user_prefs', JSON.stringify(prefs));
+    } catch (e) {}
+  },
+
+  _hasRegion(tag) {
+    return tag && (tag.includes('-') || tag.includes('_'));
+  },
+
+  _detectFromLanguages() {
+    if (typeof navigator === 'undefined' || !navigator.languages || navigator.languages.length === 0) return null;
+    for (const lang of navigator.languages) {
+      if (!this._hasRegion(lang)) continue;
+      const lower = lang.toLowerCase();
+      if (lower.endsWith('-in') || lower === 'en-in') return 'INR';
+      if (lower.endsWith('-us') || lower === 'en-us') return 'USD';
+      if (lower.endsWith('-gb') || lower === 'en-gb') return 'GBP';
+      if (lower.endsWith('-au') || lower === 'en-au') return 'AUD';
+      if (lower.endsWith('-ca') || lower === 'en-ca') return 'CAD';
+    }
+    return null;
+  },
+
+  _detectFromLocale() {
+    if (typeof Intl === 'undefined' || !Intl.NumberFormat) return null;
+    const locale = Intl.NumberFormat().resolvedOptions().locale;
+    if (!locale || !this._hasRegion(locale)) return null;
+    const lower = locale.toLowerCase();
+    if (lower.endsWith('-in') || lower === 'en-in') return 'INR';
+    if (lower.endsWith('-us') || lower === 'en-us') return 'USD';
+    if (lower.endsWith('-gb') || lower === 'en-gb') return 'GBP';
+    if (lower.endsWith('-au') || lower === 'en-au') return 'AUD';
+    if (lower.endsWith('-ca') || lower === 'en-ca') return 'CAD';
+    return null;
+  },
+
+  _detectFromTimezone() {
+    if (typeof Intl === 'undefined' || !Intl.DateTimeFormat) return null;
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!tz) return null;
+      if (tz.startsWith('Asia/Kolkata') || tz.startsWith('Asia/Calcutta')) return 'INR';
+      if (tz === 'Europe/London') return 'GBP';
+      if (tz.startsWith('Australia/')) return 'AUD';
+      if (tz.startsWith('America/Toronto') || tz.startsWith('America/Vancouver')) return 'CAD';
+      if (tz.startsWith('America/New_York') || tz.startsWith('America/Los_Angeles') || tz.startsWith('America/Chicago') || tz.startsWith('America/Denver')) return 'USD';
+      if (tz.startsWith('Europe/')) {
+        const nonEuroTZs = ['Europe/Oslo', 'Europe/Copenhagen', 'Europe/Stock_holm', 'Europe/Stockholm', 'Europe/Warsaw', 'Europe/Prague', 'Europe/Budapest', 'Europe/Zurich'];
+        if (!nonEuroTZs.some(prefix => tz.startsWith(prefix))) {
+          return 'EUR';
+        }
+      }
+    } catch (e) {}
+    return null;
+  },
+
+  detectDefaultCurrency() {
+    const prefs = this.getPreferences();
+    if (prefs.currency) return prefs.currency;
+
+    let detected = this._detectFromLanguages() ||
+                   this._detectFromLocale() ||
+                   this._detectFromTimezone();
+
+    return detected || 'INR';
+  },
+
+  getActiveCurrency() {
+    const code = this.getPreferences().currency || this.detectDefaultCurrency();
+    return CurrencyRegistry[code] || CurrencyRegistry.INR;
+  },
+
+  getActiveLocale() {
+    const prefs = this.getPreferences();
+    if (prefs.locale) return prefs.locale;
+    const currency = this.getActiveCurrency();
+    return currency.defaultLocale || 'en-IN';
+  },
+
+  getFormatter(locale, currencyCode, decimals, style = 'currency') {
+    const cacheKey = `${locale}_${currencyCode}_${decimals}_${style}`;
+    
+    if (this.formattersCache.has(cacheKey)) {
+      const formatter = this.formattersCache.get(cacheKey);
+      this.formattersCache.delete(cacheKey);
+      this.formattersCache.set(cacheKey, formatter);
+      return formatter;
+    }
+
+    if (this.formattersCache.size >= this.MAX_CACHE_SIZE) {
+      const oldestKey = this.formattersCache.keys().next().value;
+      this.formattersCache.delete(oldestKey);
+    }
+
+    const options = {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    };
+    if (style === 'currency') {
+      options.style = 'currency';
+      options.currency = currencyCode;
+    }
+
+    let formatter;
+    try {
+      formatter = new Intl.NumberFormat(locale, options);
+    } catch (e) {
+      try {
+        formatter = new Intl.NumberFormat('en-US', options);
+      } catch (err) {
+        formatter = {
+          format(val) {
+            return (style === 'currency' ? (CurrencyRegistry[currencyCode]?.symbol || '$') : '') + val.toFixed(decimals);
+          },
+          formatToParts(val) {
+            return [
+              { type: 'currency', value: CurrencyRegistry[currencyCode]?.symbol || '$' },
+              { type: 'integer', value: Math.floor(val).toString() },
+              { type: 'decimal', value: '.' },
+              { type: 'fraction', value: (val % 1).toFixed(decimals).substring(2) }
+            ];
+          }
+        };
+      }
+    }
+
+    this.formattersCache.set(cacheKey, formatter);
+    return formatter;
+  },
+
+  format(value, includeSymbol = true, decimals = null) {
+    if (value === null || value === undefined || isNaN(value)) {
+      value = 0;
+    }
+    const currency = this.getActiveCurrency();
+    const locale = this.getActiveLocale();
+
+    let dec = 0;
+    if (decimals !== null) {
+      dec = decimals;
+    } else {
+      dec = FinanceEngine.getDecimalPlacesPref();
+      if (Math.abs(value) < 1000 && value % 1 !== 0) {
+        dec = 2;
+      }
+    }
+
+    if (includeSymbol) {
+      return this.getFormatter(locale, currency.code, dec, 'currency').format(value);
+    } else {
+      return this.getFormatter(locale, currency.code, dec, 'decimal').format(value);
+    }
+  }
+};
+
+const IndianFormatterStrategy = {
+  toWords(num) {
+    return FinanceEngine.numberToIndianWords(num);
+  },
+  
+  getColorCodedHtml(value, decimals) {
+    return renderTokenizedHtml(value, decimals, 'indian');
+  }
+};
+
+const InternationalFormatterStrategy = {
+  toWords(num) {
+    return FinanceEngine.numberToInternationalWords(num);
+  },
+
+  getColorCodedHtml(value, decimals) {
+    return renderTokenizedHtml(value, decimals, 'international');
+  }
+};
+
+function renderTokenizedHtml(value, decimals, system) {
+  const currency = CurrencyManager.getActiveCurrency();
+  const locale = CurrencyManager.getActiveLocale();
+  const formatter = CurrencyManager.getFormatter(locale, currency.code, decimals, 'currency');
+  
+  let parts;
+  try {
+    parts = formatter.formatToParts(value);
+  } catch (e) {
+    const formatted = formatter.format(value);
+    return `<span class="color-currency-symbol">${currency.symbol}</span>${formatted.replace(currency.symbol, '')}`;
+  }
+
+  const integerParts = parts.filter(p => p.type === 'integer');
+  const totalIntegerGroups = integerParts.length;
+
+  let integerCount = 0;
+
+  return parts.map(p => {
+    if (p.type === 'integer') {
+      const groupIndexFromRight = totalIntegerGroups - 1 - integerCount;
+      integerCount++;
+
+      let className = 'color-group-4';
+      if (groupIndexFromRight === 0) className = 'color-group-0';
+      else if (groupIndexFromRight === 1) className = 'color-group-1';
+      else if (groupIndexFromRight === 2) className = 'color-group-2';
+      else if (groupIndexFromRight === 3) className = 'color-group-3';
+
+      return `<span class="${className}">${p.value}</span>`;
+    }
+    if (p.type === 'currency') {
+      return `<span class="color-currency-symbol">${p.value}</span>`;
+    }
+    if (p.type === 'fraction') {
+      return `<span class="color-decimals">${p.value}</span>`;
+    }
+    return p.value;
+  }).join('');
+}
+
+function getActiveStrategy() {
+  const currency = CurrencyManager.getActiveCurrency();
+  return currency.system === 'indian' ? IndianFormatterStrategy : InternationalFormatterStrategy;
+}
+
 const FinanceEngine = {
   // Tax configurations (FY 2024-25 Budget updates, reviewed June 2026)
   TaxConfig: {
@@ -200,55 +454,22 @@ const FinanceEngine = {
   },
   
   /**
-   * Format a number into Indian Rupee format (e.g. ₹12,34,567.89)
+   * Format a number into preferred currency format
    */
   formatINR(value, includeSymbol = true, decimals = null) {
-    if (value === null || value === undefined || isNaN(value)) {
-      return includeSymbol ? '₹0' : '0';
-    }
-    let dec = 0;
-    if (decimals !== null) {
-      dec = decimals;
-    } else if (includeSymbol) {
-      dec = this.getDecimalPlacesPref();
-      // Auto-enforce 2 decimal places for small fractional values below 1000
-      if (Math.abs(value) < 1000 && value % 1 !== 0) {
-        dec = 2;
-      }
-    }
-    const formatted = new Intl.NumberFormat('en-IN', {
-      minimumFractionDigits: dec,
-      maximumFractionDigits: dec
-    }).format(value);
-    return includeSymbol ? '₹' + formatted : formatted;
+    return CurrencyManager.format(value, includeSymbol, decimals);
   },
 
   /**
-   * Smart INR format: shows up to 2 decimal places when fractional part exists,
-   * rounded to 2dp. Whole numbers display without decimals.
-   * e.g. 12345.678 → ₹12,345.68 | 12345.00 → ₹12,345
+   * Smart currency formatter
    */
   formatINRSmart(value, includeSymbol = true) {
-    if (value === null || value === undefined || isNaN(value)) {
-      return includeSymbol ? '₹0' : '0';
-    }
-    let decimals = 0;
-    if (includeSymbol) {
-      decimals = this.getDecimalPlacesPref();
-      // Auto-enforce 2 decimal places for small fractional values below 1000
-      if (Math.abs(value) < 1000 && value % 1 !== 0) {
-        decimals = 2;
-      }
-    } else {
+    let decimals = null;
+    if (!includeSymbol) {
       const rounded = Math.round(value * 100) / 100;
       decimals = (rounded % 1 !== 0) ? 2 : 0;
     }
-    const roundedVal = Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
-    const formatted = new Intl.NumberFormat('en-IN', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(roundedVal);
-    return includeSymbol ? '₹' + formatted : formatted;
+    return CurrencyManager.format(value, includeSymbol, decimals);
   },
 
   /**
@@ -314,45 +535,68 @@ const FinanceEngine = {
   },
 
   /**
-   * Return HTML string with color-coded tags for the Indian Numbering System
+   * Return HTML string with color-coded tags using native tokenized parts
    */
   getColorCodedINRHtml(text) {
     if (!text || (typeof text !== 'string')) return null;
-    const trimmed = text.trim();
-    if (!trimmed.includes('₹') && !/^\d/.test(trimmed.replace(/[,\s-]/g, ''))) {
-      return null;
+    const numericVal = parseFloat(text.replace(/[^\d.-]/g, '')) || 0;
+    const hasDecimals = text.includes('.');
+    const decimals = hasDecimals ? text.split('.')[1].length : 0;
+    return getActiveStrategy().getColorCodedHtml(numericVal, decimals);
+  },
+
+  /**
+   * Convert number to words in the International Numbering System (Millions/Billions)
+   */
+  numberToInternationalWords(num) {
+    if (num === null || num === undefined || isNaN(num)) return '';
+    num = Math.round(num);
+    if (num === 0) return 'Zero';
+    if (num < 0) return 'Minus ' + this.numberToInternationalWords(Math.abs(num));
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
+                  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+
+    function convertGroup(n) {
+      let str = '';
+      if (n >= 100) {
+        str += ones[Math.floor(n / 100)] + ' Hundred ';
+        n %= 100;
+      }
+      if (n >= 20) {
+        str += tens[Math.floor(n / 10)] + ' ';
+        n %= 10;
+      }
+      if (n > 0) {
+        str += ones[n] + ' ';
+      }
+      return str.trim();
     }
-    const hasSymbol = trimmed.startsWith('₹') || trimmed.includes('₹');
-    const isNegative = trimmed.includes('-');
-    let cleanText = trimmed.replace(/[₹\s-]/g, '');
 
-    // Split by decimal
-    const parts = cleanText.split('.');
-    const integerPart = parts[0];
-    const decimalPart = parts[1];
+    let result = '';
+    let scaleIdx = 0;
 
-    // Split integer part by commas
-    const groups = integerPart.split(',');
-    const len = groups.length;
-
-    const wrappedGroups = groups.map((group, idx) => {
-      const posFromRight = len - 1 - idx;
-      let className = '';
-      if (posFromRight === 0) className = 'color-ones-tens-hundreds';
-      else if (posFromRight === 1) className = 'color-thousands';
-      else if (posFromRight === 2) className = 'color-lakhs';
-      else className = 'color-crores';
-      return `<span class="${className}">${group}</span>`;
-    });
-
-    let html = '';
-    if (isNegative) html += '-';
-    if (hasSymbol) html += '<span class="color-currency-symbol">₹</span>';
-    html += wrappedGroups.join(',');
-    if (decimalPart !== undefined) {
-      html += `.<span class="color-decimals">${decimalPart}</span>`;
+    while (num > 0) {
+      let group = num % 1000;
+      if (group > 0) {
+        const groupStr = convertGroup(group);
+        const scaleStr = scales[scaleIdx];
+        result = groupStr + (scaleStr ? ' ' + scaleStr : '') + ' ' + result;
+      }
+      num = Math.floor(num / 1000);
+      scaleIdx++;
     }
-    return html;
+
+    return result.trim().replace(/\s+/g, ' ');
+  },
+
+  /**
+   * Dynamic Words Router based on selected strategy
+   */
+  numberToWords(num) {
+    return getActiveStrategy().toWords(num);
   },
 
   // 3. XIRR Newton-Raphson Solver
@@ -1321,7 +1565,13 @@ const FinanceEngine = {
 
 if (typeof globalThis !== 'undefined') {
   globalThis.FinanceEngine = FinanceEngine;
+  globalThis.CurrencyManager = CurrencyManager;
+  globalThis.CurrencyRegistry = CurrencyRegistry;
+  globalThis.IndianFormatterStrategy = IndianFormatterStrategy;
+  globalThis.InternationalFormatterStrategy = InternationalFormatterStrategy;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = FinanceEngine;
+  FinanceEngine.CurrencyManager = CurrencyManager;
+  FinanceEngine.CurrencyRegistry = CurrencyRegistry;
 }

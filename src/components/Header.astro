@@ -33,6 +33,26 @@
     
     <div class="sidebar-category-title mobile-only">Options</div>
     <div class="header-actions">
+      <div style="position: relative;" class="currency-menu-container">
+        <button class="currency-toggle-btn" id="currency-toggle-btn" aria-label="Change currency" style="padding: 0.35rem 0.6rem; font-size: 0.82rem; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.25rem; outline: none; height: 32px;">
+          <span id="header-currency-code">INR</span>
+          <span style="font-size: 0.55rem; opacity: 0.7;">▼</span>
+        </button>
+        <div id="currency-dropdown" class="currency-dropdown-menu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--card-shadow); z-index: 1000; padding: 0.25rem 0; min-width: 130px;">
+          <button class="currency-dropdown-item" data-currency="INR" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">India (INR)</button>
+          <button class="currency-dropdown-item" data-currency="USD" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">USA (USD)</button>
+          <button class="currency-dropdown-item" data-currency="GBP" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">UK (GBP)</button>
+          <button class="currency-dropdown-item" data-currency="EUR" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">Europe (EUR)</button>
+          <button class="currency-dropdown-item" data-currency="CAD" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">Canada (CAD)</button>
+          <button class="currency-dropdown-item" data-currency="AUD" style="display: block; width: 100%; text-align: left; padding: 0.4rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;">Australia (AUD)</button>
+        </div>
+      </div>
+      <style is:inline>
+        .currency-dropdown-item:hover {
+          background-color: var(--border-color) !important;
+        }
+      </style>
+
       <button class="preferences-btn" id="preferences-btn" aria-label="Preferences">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>

@@ -1201,6 +1201,11 @@ table td:last-child {
   padding-bottom: 1.25rem;
 }
 
+.faq-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .faq-question {
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -1504,22 +1509,27 @@ footer p {
   margin-right: 0.1rem;
 }
 
-.color-ones-tens-hundreds {
+.color-group-0 {
   color: var(--color-ones);
 }
 
-.color-thousands {
+.color-group-1 {
   color: var(--color-thousands);
   font-weight: 600;
 }
 
-.color-lakhs {
+.color-group-2 {
   color: var(--color-lakhs);
   font-weight: 600;
 }
 
-.color-crores {
+.color-group-3 {
   color: var(--color-crores);
+  font-weight: 700;
+}
+
+.color-group-4 {
+  color: #d373ff;
   font-weight: 700;
 }
 

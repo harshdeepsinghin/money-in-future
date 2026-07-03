@@ -3,7 +3,15 @@
 import Layout from '../layouts/Layout.astro';
 import { getCuratedIndexScenarios } from '../data/popularCombinations.js';
 
-const groups = getCuratedIndexScenarios();
+const currencyGroups = getCuratedIndexScenarios();
+const currencies = [
+  { code: 'INR', label: 'India (INR)', symbol: '₹' },
+  { code: 'USD', label: 'United States (USD)', symbol: '$' },
+  { code: 'GBP', label: 'United Kingdom (GBP)', symbol: '£' },
+  { code: 'EUR', label: 'Europe (EUR)', symbol: '€' },
+  { code: 'CAD', label: 'Canada (CAD)', symbol: 'C$' },
+  { code: 'AUD', label: 'Australia (AUD)', symbol: 'A$' }
+];
 ---
 <Layout 
   title="Popular Investment Calculations & Projections | MoneyInFuture"
@@ -14,89 +22,178 @@ const groups = getCuratedIndexScenarios();
     <p class="calculator-description">Explore pre-calculated scenarios for systematic investments, lump sums, retirement withdrawals, and more. Click any query to load the calculator with the exact parameters.</p>
   </div>
 
-  <div class="popular-calculations-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; margin-top: 2rem;">
-    {/* 1. SIP Calculations Group */}
-    <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color);"></span>
-        SIP Projections
-      </h2>
-      <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
-        {groups.sip.map(item => (
-          <li>
-            <a 
-              href={item.url} 
-              style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
-              onmouseover="this.style.transform='translateX(4px)'"
-              onmouseout="this.style.transform='translateX(0)'"
-            >
-              {item.text} &rarr;
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-
-    {/* 2. Lump Sum Calculations Group */}
-    <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--success-color);"></span>
-        Lump Sum Projections
-      </h2>
-      <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
-        {groups.lumpSum.map(item => (
-          <li>
-            <a 
-              href={item.url} 
-              style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
-              onmouseover="this.style.transform='translateX(4px)'"
-              onmouseout="this.style.transform='translateX(0)'"
-            >
-              {item.text} &rarr;
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-
-    {/* 3. Step-Up & SWP Group */}
-    <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--warning-color);"></span>
-        Step-Up SIP & SWP
-      </h2>
-      
-      <h3 style="font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em;">Step-Up SIP Scenarios</h3>
-      <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
-        {groups.stepUp.map(item => (
-          <li>
-            <a 
-              href={item.url} 
-              style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
-              onmouseover="this.style.transform='translateX(4px)'"
-              onmouseout="this.style.transform='translateX(0)'"
-            >
-              {item.text} &rarr;
-            </a>
-          </li>
-        ))}
-      </ul>
-
-      <h3 style="font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em; border-top: 1px solid var(--border-color); padding-top: 1rem;">Systematic Withdrawal (SWP)</h3>
-      <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
-        {groups.swp.map(item => (
-          <li>
-            <a 
-              href={item.url} 
-              style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
-              onmouseover="this.style.transform='translateX(4px)'"
-              onmouseout="this.style.transform='translateX(0)'"
-            >
-              {item.text} &rarr;
-            </a>
-          </li>
-        ))}
-      </ul>
+  <!-- Currency Tabs -->
+  <div class="currency-tabs-container" style="margin-top: 2rem; margin-bottom: 2rem;">
+    <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+      {currencies.map((c, idx) => (
+        <button 
+          class={`tab-btn ${idx === 0 ? 'active' : ''}`} 
+          data-currency={c.code}
+          style="padding: 0.6rem 1.2rem; font-size: 0.9rem; font-weight: 600; border: 1px solid var(--border-color); border-bottom: none; border-radius: 8px 8px 0 0; background: var(--card-bg); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; white-space: nowrap;"
+        >
+          {c.label}
+        </button>
+      ))}
     </div>
   </div>
+
+  <!-- CSS styling for active tab -->
+  <style is:inline>
+    .currency-tabs-container .tab-btn.active {
+      background: var(--accent-color) !important;
+      color: #fff !important;
+      border-color: var(--accent-color) !important;
+    }
+  </style>
+
+  <!-- Scenario Contents -->
+  {currencies.map((c, idx) => {
+    const group = currencyGroups[c.code];
+    return (
+      <div 
+        class="currency-scenarios-group" 
+        id={`scenarios-${c.code}`} 
+        style={idx === 0 ? "display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem;" : "display: none; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem;"}
+      >
+        {/* 1. SIP Calculations Group */}
+        {group.sip && group.sip.length > 0 && (
+          <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color);"></span>
+              SIP Projections
+            </h2>
+            <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
+              {group.sip.map(item => (
+                <li>
+                  <a 
+                    href={item.url} 
+                    style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
+                    onmouseover="this.style.transform='translateX(4px)'"
+                    onmouseout="this.style.transform='translateX(0)'"
+                  >
+                    {item.text} &rarr;
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 2. Lump Sum Calculations Group */}
+        {group.lumpSum && group.lumpSum.length > 0 && (
+          <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--success-color);"></span>
+              Lump Sum Projections
+            </h2>
+            <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
+              {group.lumpSum.map(item => (
+                <li>
+                  <a 
+                    href={item.url} 
+                    style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
+                    onmouseover="this.style.transform='translateX(4px)'"
+                    onmouseout="this.style.transform='translateX(0)'"
+                  >
+                    {item.text} &rarr;
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 3. Step-Up & SWP Group */}
+        {((group.stepUp && group.stepUp.length > 0) || (group.swp && group.swp.length > 0)) && (
+          <div class="scenarios-card" style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.75rem; box-shadow: var(--card-shadow);">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--warning-color);"></span>
+              Step-Up & SWP
+            </h2>
+            
+            {group.stepUp && group.stepUp.length > 0 && (
+              <>
+                <h3 style="font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em;">Step-Up SIP</h3>
+                <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                  {group.stepUp.map(item => (
+                    <li>
+                      <a 
+                        href={item.url} 
+                        style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
+                        onmouseover="this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.transform='translateX(0)'"
+                      >
+                        {item.text} &rarr;
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {group.swp && group.swp.length > 0 && (
+              <>
+                <h3 style="font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em; border-top: 1px solid var(--border-color); padding-top: 1rem;">Systematic Withdrawal (SWP)</h3>
+                <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem;">
+                  {group.swp.map(item => (
+                    <li>
+                      <a 
+                        href={item.url} 
+                        style="font-size: 0.92rem; font-weight: 500; color: var(--accent-color); text-decoration: none; display: inline-block; transition: transform 0.15s ease;"
+                        onmouseover="this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.transform='translateX(0)'"
+                      >
+                        {item.text} &rarr;
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  })}
+
+  <!-- Client-side Toggler Script -->
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabs = document.querySelectorAll('.currency-tabs-container .tab-btn');
+      const groups = document.querySelectorAll('.currency-scenarios-group');
+      
+      // Auto-detect active currency preference
+      let preferredCurrency = 'INR';
+      try {
+        const stored = localStorage.getItem('moneyinfuture_user_prefs');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.currency) preferredCurrency = parsed.currency;
+        }
+      } catch (e) {}
+
+      // Activate preferred currency tab on load
+      const activeTab = document.querySelector(`.currency-tabs-container .tab-btn[data-currency="${preferredCurrency}"]`) || tabs[0];
+      if (activeTab) {
+        tabs.forEach(t => t.classList.remove('active'));
+        activeTab.classList.add('active');
+        
+        groups.forEach(g => g.style.display = 'none');
+        const activeGroup = document.getElementById(`scenarios-${activeTab.dataset.currency}`);
+        if (activeGroup) activeGroup.style.display = 'grid';
+      }
+
+      // Add click listeners
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          
+          groups.forEach(g => g.style.display = 'none');
+          const group = document.getElementById(`scenarios-${tab.dataset.currency}`);
+          if (group) group.style.display = 'grid';
+        });
+      });
+    });
+  </script>
 </Layout>

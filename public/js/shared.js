@@ -120,18 +120,25 @@ function updateDynamicSeoTags() {
     }
     
     if (amount !== null && rate !== null && years !== null && !isNaN(amount) && !isNaN(rate) && !isNaN(years)) {
-      // Format values for SEO snippet
-      const formattedAmount = '₹' + amount.toLocaleString('en-IN');
+      // Format values for SEO snippet using active currency
+      const active = (typeof CurrencyManager !== 'undefined') ? CurrencyManager.getActiveCurrency() : { symbol: '₹', code: 'INR' };
+      const formattedAmount = (typeof CurrencyManager !== 'undefined')
+        ? CurrencyManager.format(amount, true, 0)
+        : (active.symbol + amount.toLocaleString());
       const formattedRate = rate + '%';
       const formattedYears = years + (years === 1 ? ' Year' : ' Years');
+      
+      const isSip = calculatorName.toLowerCase().includes('sip');
+      const isLump = calculatorName.toLowerCase().includes('lump sum') || calculatorName.toLowerCase().includes('lumpsum');
       
       let titleText = '';
       let descText = '';
       
-      if (calculatorName.toLowerCase().includes('sip')) {
-        titleText = `SIP Calculator: Invest ${formattedAmount}/month for ${formattedYears} at ${formattedRate} | MoneyInFuture`;
+      if (isSip) {
+        const term = active.code !== 'INR' ? 'DCA' : 'SIP';
+        titleText = `${term} Calculator: Invest ${formattedAmount}/month for ${formattedYears} at ${formattedRate} | MoneyInFuture`;
         descText = `Calculated results for investing ${formattedAmount} per month for ${formattedYears} at ${formattedRate} expected return rate. Find total investment, returns, and future compounding corpus.`;
-      } else if (calculatorName.toLowerCase().includes('lump sum') || calculatorName.toLowerCase().includes('lumpsum')) {
+      } else if (isLump) {
         titleText = `Lump Sum Calculator: Invest ${formattedAmount} for ${formattedYears} at ${formattedRate} | MoneyInFuture`;
         descText = `Calculated results for investing a lump sum of ${formattedAmount} for ${formattedYears} at ${formattedRate} CAGR return rate. See your projected returns and final wealth.`;
       } else {
@@ -3245,7 +3252,8 @@ const defaultPreferences = {
   showInflation: true,
   showTaxation: true,
   globalInflationRate: 6.0,
-  decimalPlaces: 0
+  decimalPlaces: 0,
+  currency: 'INR'
 };
 
 function getPreference(key) {
@@ -3301,6 +3309,16 @@ function applyPreferences() {
   const firstInput = document.querySelector('.inputs-card input[type="number"], .inputs-card select');
   if (firstInput) {
     firstInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // Hydrate currency labels & prefixes
+  hydrateCurrencyUI();
+
+  // Sync header currency code text
+  const activeCode = getPreference('currency') || 'INR';
+  const headerCodeEl = document.getElementById('header-currency-code');
+  if (headerCodeEl) {
+    headerCodeEl.textContent = activeCode;
   }
 }
 
@@ -3364,6 +3382,21 @@ function initPreferences() {
               <option value="0">0 (Integer)</option>
               <option value="1">1 Decimal Place</option>
               <option value="2">2 Decimal Places</option>
+            </select>
+          </div>
+
+          <div class="pref-item" style="align-items: center;">
+            <div class="pref-info">
+              <span class="pref-title">Currency</span>
+              <span class="pref-desc">Select default currency format</span>
+            </div>
+            <select id="pref-currency-choice" aria-label="Default Currency" style="width: auto; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer; outline: none;">
+              <option value="INR">INR (₹) Indian</option>
+              <option value="USD">USD ($) US Dollar</option>
+              <option value="GBP">GBP (£) British Pound</option>
+              <option value="EUR">EUR (€) Euro</option>
+              <option value="AUD">AUD (A$) Australian Dollar</option>
+              <option value="CAD">CAD (C$) Canadian Dollar</option>
             </select>
           </div>
         </div>
@@ -3474,6 +3507,87 @@ function initPreferences() {
     });
   }
 
+  const currencySelect = document.getElementById('pref-currency-choice');
+  if (currencySelect) {
+    const defaultCurr = (typeof CurrencyManager !== 'undefined')
+      ? CurrencyManager.getActiveCurrency().code
+      : (getPreference('currency') || 'INR');
+    currencySelect.value = defaultCurr;
+    
+    currencySelect.addEventListener('change', (e) => {
+      // Clear formatter cache on currency change to trigger fresh instance configurations
+      if (typeof CurrencyManager !== 'undefined') {
+        CurrencyManager.formattersCache.clear();
+      }
+      setPreference('currency', e.target.value);
+      
+      // Dynamic description helpers next to inflation inputs
+      const infInput = document.getElementById('inflation-rate');
+      if (infInput && parseFloat(infInput.value) === 6 && ['USD', 'GBP', 'EUR'].includes(e.target.value)) {
+        // Suggest low inflation for USD/GBP/EUR if user has default 6%
+        const activeDefaultInflation = (typeof CurrencyManager !== 'undefined')
+          ? CurrencyManager.getActiveCurrency().defaultInflation
+          : 3;
+        infInput.value = activeDefaultInflation;
+        infInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (typeof translateUI !== 'undefined') {
+        translateUI(window.currentFinanceLevel || 'simple');
+      }
+      if (typeof triggerCalculatorRecalculate !== 'undefined') {
+        triggerCalculatorRecalculate();
+      }
+    });
+  }
+
+  // Bind Header Currency Dropdown
+  const toggleBtn = document.getElementById('currency-toggle-btn');
+  const dropdown = document.getElementById('currency-dropdown');
+  if (toggleBtn && dropdown) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = dropdown.style.display === 'block';
+      dropdown.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', () => {
+      dropdown.style.display = 'none';
+    });
+
+    dropdown.querySelectorAll('.currency-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const selected = item.dataset.currency;
+        if (typeof CurrencyManager !== 'undefined') {
+          CurrencyManager.formattersCache.clear();
+        }
+        setPreference('currency', selected);
+        
+        // Dynamic description helpers next to inflation inputs
+        const infInput = document.getElementById('inflation-rate');
+        if (infInput && parseFloat(infInput.value) === 6 && ['USD', 'GBP', 'EUR'].includes(selected)) {
+          const activeDefaultInflation = (typeof CurrencyManager !== 'undefined')
+            ? CurrencyManager.getActiveCurrency().defaultInflation
+            : 3;
+          infInput.value = activeDefaultInflation;
+          infInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // Sync preferences modal select element if present
+        const currencySelect = document.getElementById('pref-currency-choice');
+        if (currencySelect) {
+          currencySelect.value = selected;
+        }
+
+        if (typeof translateUI !== 'undefined') {
+          translateUI(window.currentFinanceLevel || 'simple');
+        }
+        if (typeof triggerCalculatorRecalculate !== 'undefined') {
+          triggerCalculatorRecalculate();
+        }
+      });
+    });
+  }
+
   // Bind reset button
   const resetBtn = document.getElementById('pref-reset-btn');
   if (resetBtn) {
@@ -3507,6 +3621,15 @@ function openPreferences() {
     }
     const decimalSelect = document.getElementById('pref-decimal-places');
     if (decimalSelect) decimalSelect.value = getPreference('decimalPlaces');
+    
+    const currencySelect = document.getElementById('pref-currency-choice');
+    if (currencySelect) {
+      const activeCurr = (typeof CurrencyManager !== 'undefined')
+        ? CurrencyManager.getActiveCurrency().code
+        : (getPreference('currency') || 'INR');
+      currencySelect.value = activeCurr;
+    }
+
     modal.style.display = 'flex';
   }
 }
@@ -3524,11 +3647,11 @@ function updateInputWords(input) {
   }
   const wrapper = input.closest('.input-wrapper');
   if (!wrapper) return;
-  const hasRupeePrefix = !!wrapper.querySelector('.input-prefix');
-  if (!hasRupeePrefix) return;
+  const hasPrefix = !!wrapper.querySelector('.input-prefix');
+  if (!hasPrefix) return;
 
   const val = parseFloat(input.value);
-  const words = (isNaN(val) || val <= 0) ? '' : FinanceEngine.numberToIndianWords(val);
+  const words = (isNaN(val) || val <= 0) ? '' : FinanceEngine.numberToWords(val);
 
   let wordsEl = input.closest('.input-group').querySelector('.input-words');
   if (!wordsEl) {
@@ -3541,6 +3664,20 @@ function updateInputWords(input) {
     input.closest('.input-group').appendChild(wordsEl);
   }
   wordsEl.textContent = words ? words : '';
+}
+
+function parseNumericValue(text) {
+  if (!text) return NaN;
+  const locale = (typeof CurrencyManager !== 'undefined') ? CurrencyManager.getActiveLocale() : 'en-US';
+  const parts = new Intl.NumberFormat(locale).formatToParts(1.1);
+  const decimalSep = parts.find(p => p.type === 'decimal')?.value || '.';
+  const escapedSep = decimalSep === '.' ? '\\.' : decimalSep;
+  const regex = new RegExp(`[^\\d-${escapedSep}]`, 'g');
+  let clean = text.replace(regex, '');
+  if (decimalSep !== '.') {
+    clean = clean.replace(new RegExp(escapedSep, 'g'), '.');
+  }
+  return parseFloat(clean);
 }
 
 function updateMetricWords(el) {
@@ -3556,8 +3693,8 @@ function updateMetricWords(el) {
     return;
   }
 
-  const val = parseFloat(text.replace(/[₹,\s]/g, ''));
-  const words = (isNaN(val) || val <= 0) ? '' : FinanceEngine.numberToIndianWords(val);
+  const val = parseNumericValue(text);
+  const words = (isNaN(val) || val <= 0) ? '' : FinanceEngine.numberToWords(val);
 
   let wordsEl = el.parentElement.querySelector('.metric-words');
   if (!wordsEl) {
@@ -3570,6 +3707,458 @@ function updateMetricWords(el) {
     el.parentElement.appendChild(wordsEl);
   }
   wordsEl.textContent = words ? words : '';
+}
+
+function hydrateCurrencyUI() {
+  if (typeof CurrencyManager === 'undefined') return;
+  const active = CurrencyManager.getActiveCurrency();
+  
+  // 1. Swap input prefixes
+  document.querySelectorAll('.input-prefix').forEach(el => {
+    if (['₹', '$', '£', '€'].includes(el.textContent.trim())) {
+      el.textContent = active.symbol;
+    }
+  });
+
+  // 2. Update color-coded currency tags
+  document.querySelectorAll('.color-currency-symbol').forEach(el => {
+    el.textContent = active.symbol;
+  });
+
+  // 3. Inject tax warning banner if relevant
+  injectTaxWarningBanner();
+
+  // 4. Hydrate popular scenarios & links
+  hydratePopularCalculations();
+
+  // 5. Translate Page Vocabulary dynamically for SEO + UX mapping
+  translatePageVocabulary();
+}
+
+function injectTaxWarningBanner() {
+  if (typeof CurrencyManager === 'undefined') return;
+  const active = CurrencyManager.getActiveCurrency();
+  
+  const path = window.location.pathname;
+  const isCalculatorPage = path.includes('/calculators/');
+  const taxGroup = document.getElementById('tax-type');
+  const customTaxRateInput = document.getElementById('custom-tax-rate');
+  
+  const existingBanner = document.getElementById('tax-warning-banner');
+  if (existingBanner) {
+    existingBanner.remove();
+  }
+
+  if (isCalculatorPage && taxGroup) {
+    const container = document.querySelector('.calculator-top-section');
+    if (container) {
+      if (active.code !== 'INR') {
+        // Change default tax to custom (0%) for non-INR currencies
+        if (taxGroup.value === 'equity_ltcg' || taxGroup.value === 'equity_stcg') {
+          taxGroup.value = 'slab';
+          taxGroup.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          if (customTaxRateInput) {
+            customTaxRateInput.value = '0';
+            customTaxRateInput.dispatchEvent(new Event('input', { bubbles: true }));
+            const slider = document.getElementById('custom-tax-rate-slider');
+            if (slider) slider.value = '0';
+            const display = document.getElementById('custom-tax-rate-val');
+            if (display) display.textContent = '0%';
+          }
+        }
+        
+        const banner = document.createElement('div');
+        banner.id = 'tax-warning-banner';
+        banner.className = 'info-banner-alert';
+        banner.innerHTML = `
+          <div class="banner-content" style="padding: 1rem; background: var(--input-bg); border-left: 4px solid var(--warning-color); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+            <strong>Taxation Adjusted:</strong> Tax rate has been set to <strong>Custom (0% flat rate)</strong> by default for international layout compatibility. You can adjust this percentage below to match your local region's tax slab.
+          </div>
+        `;
+        container.parentNode.insertBefore(banner, container);
+      } else {
+        // If switched back to INR and tax was custom 0%, restore standard Indian Equity LTCG tax presets
+        if (taxGroup.value === 'slab' && customTaxRateInput && parseFloat(customTaxRateInput.value) === 0) {
+          taxGroup.value = 'equity_ltcg';
+          taxGroup.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          customTaxRateInput.value = '12.5';
+          customTaxRateInput.dispatchEvent(new Event('input', { bubbles: true }));
+          const slider = document.getElementById('custom-tax-rate-slider');
+          if (slider) slider.value = '12.5';
+          const display = document.getElementById('custom-tax-rate-val');
+          if (display) display.textContent = '12.5%';
+        }
+      }
+    }
+  }
+}
+
+function hydratePopularCalculations() {
+  if (typeof CurrencyManager === 'undefined') return;
+  const active = CurrencyManager.getActiveCurrency();
+  
+  const sipScenarios = {
+    INR: [
+      { url: '/calculators/sip?monthly=500&years=5&rate=12&currency=INR', text: 'If I invest ₹500 per month for 5 years at 12% return' },
+      { url: '/calculators/sip?monthly=1000&years=10&rate=12&currency=INR', text: 'If I invest ₹1,000 per month for 10 years at 12% return' },
+      { url: '/calculators/sip?monthly=2000&years=15&rate=12&currency=INR', text: 'If I invest ₹2,000 per month for 15 years at 12% return' },
+      { url: '/calculators/sip?monthly=5000&years=20&rate=12&currency=INR', text: 'If I invest ₹5,000 per month for 20 years at 12% return' },
+      { url: '/calculators/sip?monthly=10000&years=20&rate=12&currency=INR', text: 'If I invest ₹10,000 per month for 20 years at 12% return' },
+      { url: '/calculators/sip?monthly=15000&years=15&rate=12&currency=INR', text: 'If I invest ₹15,000 per month for 15 years at 12% return' },
+      { url: '/calculators/sip?monthly=20000&years=25&rate=12&currency=INR', text: 'If I invest ₹20,000 per month for 25 years at 12% return' },
+      { url: '/calculators/sip?monthly=25000&years=25&rate=12&currency=INR', text: 'If I invest ₹25,000 per month for 25 years at 12% return' },
+      { url: '/calculators/sip?monthly=50000&years=30&rate=12&currency=INR', text: 'If I invest ₹50,000 per month for 30 years at 12% return' },
+      { url: '/calculators/sip?monthly=100000&years=30&rate=12&currency=INR', text: 'If I invest ₹1,00,000 per month for 30 years at 12% return' },
+      { url: '/calculators/sip?monthly=5000&years=35&rate=8&currency=INR', text: 'If I invest ₹5,000 every month for retirement' },
+      { url: '/calculators/sip?monthly=10000&years=20&rate=12&currency=INR', text: 'If I invest ₹10,000 monthly for 20 years' },
+      { url: '/calculators/sip?monthly=2000&years=10&rate=12&currency=INR', text: 'SIP calculator for ₹2,000 per month' },
+      { url: '/calculators/sip?monthly=100000&years=30&rate=12&currency=INR', text: '₹1 lakh SIP after 30 years' },
+      { url: '/calculators/sip?monthly=50000&years=20&rate=12&currency=INR', text: '₹50,000 monthly investment returns' }
+    ],
+    USD: [
+      { url: '/calculators/sip?monthly=100&years=10&rate=8&currency=USD', text: 'If I invest $100 per month for 10 years at 8% return' },
+      { url: '/calculators/sip?monthly=250&years=20&rate=8&currency=USD', text: 'If I invest $250 per month for 20 years at 8% return' },
+      { url: '/calculators/sip?monthly=500&years=30&rate=10&currency=USD', text: 'If I invest $500 per month for 30 years at 10% return' },
+      { url: '/calculators/sip?monthly=1000&years=20&rate=10&currency=USD', text: 'If I invest $1,000 per month for 20 years at 10% return' },
+      { url: '/calculators/sip?monthly=2000&years=30&rate=10&currency=USD', text: 'If I invest $2,000 per month for 30 years at 10% return' },
+      { url: '/calculators/sip?monthly=5000&years=30&rate=10&currency=USD', text: 'If I invest $5,000 per month for 30 years at 10% return' },
+      { url: '/calculators/sip?monthly=500&years=35&rate=8&currency=USD', text: 'If I invest $500 a month for retirement' },
+      { url: '/calculators/sip?monthly=1000&years=25&rate=8&currency=USD', text: 'If I invest $1,000 a month until retirement' },
+      { url: '/calculators/sip?monthly=2500&years=25&rate=8&currency=USD', text: 'If I invest $2,500 per month for 25 years' },
+      { url: '/calculators/sip?monthly=500&years=15&rate=8&currency=USD', text: 'What if I invest $500 every month?' },
+      { url: '/calculators/sip?monthly=1000&years=20&rate=8&currency=USD', text: 'How much will $1,000 per month grow in 20 years?' },
+      { url: '/calculators/sip?monthly=200&years=10&rate=8&currency=USD', text: '$200 monthly investment calculator' },
+      { url: '/calculators/sip?monthly=100&years=15&rate=8&currency=USD', text: '$100 a month investment returns' },
+      { url: '/calculators/sip?monthly=5000&years=25&rate=8&currency=USD', text: '$5000 monthly investment calculator' }
+    ],
+    GBP: [
+      { url: '/calculators/sip?monthly=100&years=10&rate=7&currency=GBP', text: 'If I invest £100 per month for 10 years' },
+      { url: '/calculators/sip?monthly=250&years=20&rate=7&currency=GBP', text: 'If I invest £250 per month for 20 years' },
+      { url: '/calculators/sip?monthly=500&years=25&rate=8&currency=GBP', text: 'If I invest £500 per month for 25 years' },
+      { url: '/calculators/sip?monthly=1000&years=30&rate=8&currency=GBP', text: 'If I invest £1,000 per month for 30 years' },
+      { url: '/calculators/sip?monthly=2000&years=25&rate=8&currency=GBP', text: 'If I invest £2,000 per month for retirement' },
+      { url: '/calculators/sip?monthly=500&years=20&rate=7&currency=GBP', text: '£500 monthly investment calculator' },
+      { url: '/calculators/sip?monthly=200&years=15&rate=7&currency=GBP', text: '£200 per month investment' },
+      { url: '/calculators/sip?monthly=1000&years=20&rate=8&currency=GBP', text: '£1000 monthly savings growth' }
+    ],
+    EUR: [
+      { url: '/calculators/sip?monthly=100&years=10&rate=7&currency=EUR', text: 'If I invest €100 per month for 10 years' },
+      { url: '/calculators/sip?monthly=250&years=20&rate=7&currency=EUR', text: 'If I invest €250 per month for 20 years' },
+      { url: '/calculators/sip?monthly=500&years=25&rate=8&currency=EUR', text: 'If I invest €500 per month for 25 years' },
+      { url: '/calculators/sip?monthly=1000&years=30&rate=8&currency=EUR', text: 'If I invest €1,000 per month for 30 years' },
+      { url: '/calculators/sip?monthly=2000&years=25&rate=8&currency=EUR', text: 'If I invest €2,000 monthly for retirement' },
+      { url: '/calculators/sip?monthly=500&years=20&rate=7&currency=EUR', text: '€500 monthly investment calculator' },
+      { url: '/calculators/sip?monthly=100&years=15&rate=7&currency=EUR', text: '€100 monthly investment returns' },
+      { url: '/calculators/sip?monthly=1000&years=20&rate=8&currency=EUR', text: '€1000 monthly investment growth' }
+    ],
+    CAD: [
+      { url: '/calculators/sip?monthly=100&years=10&rate=7&currency=CAD', text: 'If I invest C$100 per month for 10 years' },
+      { url: '/calculators/sip?monthly=250&years=20&rate=7&currency=CAD', text: 'If I invest C$250 per month for 20 years' },
+      { url: '/calculators/sip?monthly=500&years=25&rate=8&currency=CAD', text: 'If I invest C$500 per month for 25 years' },
+      { url: '/calculators/sip?monthly=1000&years=25&rate=8&currency=CAD', text: 'If I invest C$1,000 per month for retirement' }
+    ],
+    AUD: [
+      { url: '/calculators/sip?monthly=100&years=10&rate=7&currency=AUD', text: 'If I invest A$100 per month for 10 years' },
+      { url: '/calculators/sip?monthly=250&years=20&rate=7&currency=AUD', text: 'If I invest A$250 per month for 20 years' },
+      { url: '/calculators/sip?monthly=500&years=25&rate=8&currency=AUD', text: 'If I invest A$500 per month for 25 years' },
+      { url: '/calculators/sip?monthly=1000&years=25&rate=8&currency=AUD', text: 'If I invest A$1,000 per month for retirement' }
+    ]
+  };
+
+  const sipUl = document.getElementById('popular-sip-scenarios');
+  if (sipUl) {
+    const list = sipScenarios[active.code] || sipScenarios.INR;
+    sipUl.innerHTML = list.map(item => `
+      <li><a href="${item.url}">${item.text}</a></li>
+    `).join('');
+  }
+
+  document.querySelectorAll('a, li, p').forEach(el => {
+    if (el.children.length > 0 && el.tagName !== 'A') return;
+    if (el.id === 'popular-sip-scenarios' || el.closest('#popular-sip-scenarios')) return;
+    
+    let text = el.innerHTML;
+    if (text.includes('If I invest') || text.includes('invest ₹') || text.includes('Withdraw ₹') || text.includes('Start ₹')) {
+      if (active.code !== 'INR') {
+        text = text.replace(/₹1\s*Lakh/g, `${active.symbol}100,000`);
+        text = text.replace(/₹5\s*Lakhs/g, `${active.symbol}500,000`);
+        text = text.replace(/₹10\s*Lakhs/g, `${active.symbol}1 Million`);
+        text = text.replace(/₹25\s*Lakhs/g, `${active.symbol}2.5 Million`);
+        text = text.replace(/₹50\s*Lakhs/g, `${active.symbol}5 Million`);
+        text = text.replace(/₹1\s*Crore/g, `${active.symbol}10 Million`);
+        text = text.replace(/₹/g, active.symbol);
+      } else {
+        text = text.replace(/([$£€]|A\$|C\$)100,000/g, '₹1 Lakh');
+        text = text.replace(/([$£€]|A\$|C\$)500,000/g, '₹5 Lakhs');
+        text = text.replace(/([$£€]|A\$|C\$)1\s*Million/g, '₹10 Lakhs');
+        text = text.replace(/([$£€]|A\$|C\$)2\.5\s*Million/g, '₹25 Lakhs');
+        text = text.replace(/([$£€]|A\$|C\$)5\s*Million/g, '₹50 Lakhs');
+        text = text.replace(/([$£€]|A\$|C\$)10\s*Million/g, '₹1 Crore');
+        text = text.replace(/([$£€]|A\$|C\$)/g, '₹');
+      }
+      el.innerHTML = text;
+    }
+  });
+}
+
+function translatePageVocabulary() {
+  if (typeof CurrencyManager === 'undefined') return;
+  const active = CurrencyManager.getActiveCurrency();
+  const path = window.location.pathname;
+
+  // 1. Translate Page Headings & Document Title
+  const h1El = document.querySelector('.calculator-header h1');
+  const descEl = document.querySelector('.calculator-header p');
+  if (h1El) {
+    if (active.code !== 'INR') {
+      if (path.includes('/sip')) {
+        h1El.textContent = 'Dollar Cost Averaging (DCA) Calculator';
+        if (descEl) descEl.innerHTML = 'Calculate your recurring investments and compound growth in real-time using a Dollar Cost Averaging (DCA) model with inflation and tax controls.';
+      } else if (path.includes('/step-up-sip')) {
+        h1El.textContent = 'Step-Up DCA (Recurring Investment) Calculator';
+        if (descEl) descEl.innerHTML = 'Maximize compounding by stepping up your recurring monthly DCA contributions annually. Model compound interest, target inflation rates, and capital gains tax.';
+      } else if (path.includes('/reverse-sip')) {
+        h1El.textContent = 'Savings Goal (Reverse DCA) Calculator';
+        if (descEl) descEl.innerHTML = 'Find the required monthly savings contribution to reach your target savings or investment corpus. Input expected growth rate and target duration.';
+      }
+    } else {
+      if (path.includes('/sip')) {
+        h1El.textContent = 'SIP Calculator';
+        if (descEl) descEl.innerHTML = 'Calculate your mutual fund SIP (Systematic Investment Plan) returns in real-time. Optimize for Indian mutual funds with inflation adjustment and capital gains taxation.';
+      } else if (path.includes('/step-up-sip')) {
+        h1El.textContent = 'Step-Up SIP Calculator';
+        if (descEl) descEl.innerHTML = 'Maximize compounding by stepping up your monthly SIP contributions annually. Model compound interest, target inflation rates, and capital gains tax on mutual funds.';
+      } else if (path.includes('/reverse-sip')) {
+        h1El.textContent = 'Reverse SIP Calculator';
+        if (descEl) descEl.innerHTML = 'Find the required monthly SIP contribution to reach your target savings or investment corpus. Input expected CAGR and target duration.';
+      }
+    }
+    document.title = h1El.textContent + ' - Calculate Money in the Future | MoneyInFuture';
+  }
+
+  // 2. Translate Input Labels
+  document.querySelectorAll('label').forEach(label => {
+    let text = label.textContent;
+    if (active.code !== 'INR') {
+      text = text.replace(/Monthly SIP/g, 'Monthly Contribution');
+      text = text.replace(/Starting Monthly SIP/g, 'Starting Monthly Contribution');
+      text = text.replace(/Required Monthly SIP/g, 'Required Monthly Contribution');
+    } else {
+      text = text.replace(/Monthly Contribution/g, 'Monthly SIP');
+      text = text.replace(/Starting Monthly Contribution/g, 'Starting Monthly SIP');
+      text = text.replace(/Required Monthly Contribution/g, 'Required Monthly SIP');
+    }
+    label.textContent = text;
+  });
+
+  // 3. Translate Results Table Headers
+  document.querySelectorAll('th').forEach(th => {
+    let text = th.textContent;
+    if (active.code !== 'INR') {
+      text = text.replace(/Monthly SIP/g, 'Monthly Contribution');
+    } else {
+      text = text.replace(/Monthly Contribution/g, 'Monthly SIP');
+    }
+    th.textContent = text;
+  });
+
+  // 4. Translate Results Card Labels
+  document.querySelectorAll('.metric-card .metric-label').forEach(cardLabel => {
+    let text = cardLabel.textContent;
+    if (active.code !== 'INR') {
+      text = text.replace(/Required Monthly SIP/g, 'Required Monthly Contribution');
+    } else {
+      text = text.replace(/Required Monthly Contribution/g, 'Required Monthly SIP');
+    }
+    cardLabel.textContent = text;
+  });
+
+  // 5. Logical Context Translation for Paragraphs and Descriptions (YMYL alignment)
+  const logicalTranslations = {
+    USD: {
+      '₹50,000': '$3,000',
+      '₹30,000': '$2,000',
+      '₹10,000': '$1,000',
+      '₹5,000': '$500',
+      '₹2,000': '$200',
+      '₹1,000': '$100',
+      '₹500': '$50',
+      '₹300': '$30',
+      '₹1.25L': '$10,000',
+      '₹1.25 Lakhs': '$10,000',
+      '1.25 Lakhs': '10,000',
+      '₹1 Lakh': '$10,000',
+      '₹5 Lakhs': '$50,000',
+      '₹10 Lakhs': '$100,000',
+      '₹20 Lakhs': '$200,000',
+      '₹25 Lakhs': '$250,000',
+      '₹50 Lakhs': '$500,000',
+      '₹80 Lakhs': '$800,000',
+      '₹1 Crore': '$1 Million',
+      '₹5 Crores': '$5 Million',
+      '₹10 Crores': '$10 Million'
+    },
+    GBP: {
+      '₹50,000': '£2,500',
+      '₹30,000': '£1,500',
+      '₹10,000': '£800',
+      '₹5,000': '£400',
+      '₹2,000': '£150',
+      '₹1,000': '£80',
+      '₹500': '£40',
+      '₹300': '£25',
+      '₹1.25L': '£8,000',
+      '₹1.25 Lakhs': '£8,000',
+      '1.25 Lakhs': '8,000',
+      '₹1 Lakh': '£8,000',
+      '₹5 Lakhs': '£40,000',
+      '₹10 Lakhs': '£80,000',
+      '₹20 Lakhs': '£160,000',
+      '₹25 Lakhs': '£200,000',
+      '₹50 Lakhs': '£400,000',
+      '₹80 Lakhs': '£640,000',
+      '₹1 Crore': '£800,000',
+      '₹5 Crores': '£4 Million',
+      '₹10 Crores': '£8 Million'
+    },
+    EUR: {
+      '₹50,000': '€2.500',
+      '₹30,000': '€1.500',
+      '₹10,000': '€1.000',
+      '₹5,000': '€500',
+      '₹2,000': '€200',
+      '₹1,000': '€100',
+      '₹500': '€50',
+      '₹300': '€30',
+      '₹1.25L': '€10.000',
+      '₹1.25 Lakhs': '€10.000',
+      '1.25 Lakhs': '10.000',
+      '₹1 Lakh': '€10.000',
+      '₹5 Lakhs': '€50.000',
+      '₹10 Lakhs': '€100.000',
+      '₹20 Lakhs': '€200.000',
+      '₹25 Lakhs': '€250.000',
+      '₹50 Lakhs': '€500.000',
+      '₹80 Lakhs': '€800.000',
+      '₹1 Crore': '€1 Million',
+      '₹5 Crores': '€5 Million',
+      '₹10 Crores': '€10 Million'
+    },
+    CAD: {
+      '₹50,000': 'C$3,500',
+      '₹30,000': 'C$2,000',
+      '₹10,000': 'C$1,000',
+      '₹5,000': 'C$500',
+      '₹2,000': 'C$200',
+      '₹1,000': 'C$100',
+      '₹500': 'C$50',
+      '₹300': 'C$30',
+      '₹1.25L': 'C$12,000',
+      '₹1.25 Lakhs': 'C$12,000',
+      '1.25 Lakhs': '12,000',
+      '₹1 Lakh': 'C$10,000',
+      '₹5 Lakhs': 'C$50,000',
+      '₹10 Lakhs': 'C$100,000',
+      '₹20 Lakhs': 'C$200,000',
+      '₹25 Lakhs': 'C$250,000',
+      '₹50 Lakhs': 'C$500,000',
+      '₹80 Lakhs': 'C$800,000',
+      '₹1 Crore': 'C$1 Million',
+      '₹5 Crores': 'C$5 Million',
+      '₹10 Crores': 'C$10 Million'
+    },
+    AUD: {
+      '₹50,000': 'A$3,500',
+      '₹30,000': 'A$2,000',
+      '₹10,000': 'A$1,000',
+      '₹5,000': 'A$500',
+      '₹2,000': 'A$200',
+      '₹1,000': 'A$100',
+      '₹500': 'A$50',
+      '₹300': 'A$30',
+      '₹1.25L': 'A$12,000',
+      '₹1.25 Lakhs': 'A$12,000',
+      '1.25 Lakhs': '12,000',
+      '₹1 Lakh': 'A$10,000',
+      '₹5 Lakhs': 'A$50,000',
+      '₹10 Lakhs': 'A$100,000',
+      '₹20 Lakhs': 'A$200,000',
+      '₹25 Lakhs': 'A$250,000',
+      '₹50 Lakhs': 'A$500,000',
+      '₹80 Lakhs': 'A$800,000',
+      '₹1 Crore': 'A$1 Million',
+      '₹5 Crores': 'A$5 Million',
+      '₹10 Crores': 'A$10 Million'
+    }
+  };
+
+  document.querySelectorAll('.calculator-description, .seo-content p, .seo-content li, .seo-content td, .seo-content th, .seo-content h2, .seo-content h3').forEach(el => {
+    if (!el.hasAttribute('data-original-html')) {
+      el.setAttribute('data-original-html', el.innerHTML);
+    }
+    
+    let html = el.getAttribute('data-original-html');
+    
+    if (active.code !== 'INR') {
+      const map = logicalTranslations[active.code];
+      if (map) {
+        const keys = Object.keys(map).sort((a, b) => b.length - a.length);
+        for (const key of keys) {
+          const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          html = html.replace(new RegExp(escapedKey, 'g'), map[key]);
+        }
+      }
+      html = html.replace(/₹/g, active.symbol);
+    }
+    
+    el.innerHTML = html;
+  });
+
+  // 6. Prepopulate Default Input Values with Logical Multipliers (Unless Query Parameters Exist)
+  const defaultLogicalValues = {
+    'monthly-sip': { INR: 10000, USD: 1000, GBP: 800, EUR: 1000, CAD: 1000, AUD: 1000 },
+    'starting-sip': { INR: 10000, USD: 1000, GBP: 800, EUR: 1000, CAD: 1000, AUD: 1000 },
+    'lump-sum': { INR: 100000, USD: 10000, GBP: 8000, EUR: 10000, CAD: 10000, AUD: 10000 },
+    'principal': { INR: 100000, USD: 10000, GBP: 8000, EUR: 10000, CAD: 10000, AUD: 10000 },
+    'target-corpus': { INR: 10000000, USD: 1000000, GBP: 800000, EUR: 1000000, CAD: 1000000, AUD: 1000000 },
+    'corpus': { INR: 10000000, USD: 1000000, GBP: 800000, EUR: 1000000, CAD: 1000000, AUD: 1000000 },
+    'initial-corpus': { INR: 5000000, USD: 500000, GBP: 400000, EUR: 500000, CAD: 500000, AUD: 500000 },
+    'monthly-withdrawal': { INR: 30000, USD: 2000, GBP: 1500, EUR: 2000, CAD: 2500, AUD: 2500 },
+    'desired-income': { INR: 50000, USD: 3000, GBP: 2500, EUR: 2500, CAD: 3500, AUD: 3500 },
+    'monthly-expenses': { INR: 50000, USD: 3000, GBP: 2500, EUR: 2500, CAD: 3500, AUD: 3500 },
+    'annual-expenses': { INR: 600000, USD: 36000, GBP: 30000, EUR: 30000, CAD: 42000, AUD: 42000 },
+    'net-worth': { INR: 2000000, USD: 200000, GBP: 150000, EUR: 200000, CAD: 250000, AUD: 250000 },
+    'monthly-savings': { INR: 40000, USD: 3000, GBP: 2500, EUR: 2500, CAD: 3500, AUD: 3500 },
+    'goal-target': { INR: 5000000, USD: 500000, GBP: 400000, EUR: 500000, CAD: 500000, AUD: 500000 },
+    'college-cost': { INR: 2000000, USD: 150000, GBP: 100000, EUR: 120000, CAD: 150000, AUD: 150000 },
+    'marriage-cost': { INR: 2000000, USD: 50000, GBP: 40000, EUR: 40000, CAD: 60000, AUD: 60000 },
+    'property-value': { INR: 8000000, USD: 400000, GBP: 300000, EUR: 350000, CAD: 500000, AUD: 500000 },
+    'milestone-amount': { INR: 5000000, USD: 500000, GBP: 400000, EUR: 500000, CAD: 500000, AUD: 500000 },
+    'equity-assets': { INR: 2000000, USD: 200000, GBP: 150000, EUR: 200000, CAD: 250000, AUD: 250000 },
+    'debt-assets': { INR: 1000000, USD: 100000, GBP: 80000, EUR: 100000, CAD: 120000, AUD: 120000 },
+    'outstanding-debts': { INR: 500000, USD: 50000, GBP: 40000, EUR: 40000, CAD: 60000, AUD: 60000 },
+    'yearly-savings': { INR: 500000, USD: 50000, GBP: 40000, EUR: 40000, CAD: 60000, AUD: 60000 },
+    'current-equity': { INR: 500000, USD: 50000, GBP: 40000, EUR: 40000, CAD: 60000, AUD: 60000 }
+  };
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.size === 0) {
+    for (const inputId in defaultLogicalValues) {
+      const inputEl = document.getElementById(inputId);
+      if (inputEl) {
+        const inrVal = defaultLogicalValues[inputId].INR;
+        const currentVal = parseFloat(inputEl.value);
+        const possibleDefaults = Object.values(defaultLogicalValues[inputId]);
+        if (possibleDefaults.includes(currentVal) || isNaN(currentVal)) {
+          const val = defaultLogicalValues[inputId][active.code] || inrVal;
+          inputEl.value = val;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  }
 }
 
 function updateMetricColorCoding(el) {

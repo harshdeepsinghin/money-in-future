@@ -143,7 +143,7 @@ test('EMI: verify reducing balance monthly EMI calculation', () => {
 });
 
 test('Formatting: respects decimalPlaces preference in summary output', () => {
-  let mockPref = { decimalPlaces: 2 };
+  let mockPref = { decimalPlaces: 2, currency: 'INR' };
   
   globalThis.localStorage = {
     getItem(key) {
@@ -195,7 +195,7 @@ test('Taxation: verify config-driven tax calculations', () => {
 });
 
 test('Formatting: auto-decimals for small fractional values below 1000', () => {
-  let mockPref = { decimalPlaces: 0 };
+  let mockPref = { decimalPlaces: 0, currency: 'INR' };
   globalThis.localStorage = {
     getItem(key) {
       if (key === 'moneyinfuture_user_prefs') {
