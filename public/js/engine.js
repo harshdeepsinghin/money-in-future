@@ -64,6 +64,15 @@ const CurrencyManager = {
       const prefs = this.getPreferences();
       prefs[key] = value;
       localStorage.setItem('moneyinfuture_user_prefs', JSON.stringify(prefs));
+      if (key === 'currency' && typeof window !== 'undefined' && window.location) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('currency', value);
+        if (params.has('curr')) {
+          params.delete('curr');
+        }
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+      }
     } catch (e) {}
   },
 
@@ -122,9 +131,9 @@ const CurrencyManager = {
     const prefs = this.getPreferences();
     if (prefs.currency) return prefs.currency;
 
-    let detected = this._detectFromLanguages() ||
-                   this._detectFromLocale() ||
-                   this._detectFromTimezone();
+    let detected = this._detectFromTimezone() ||
+                   this._detectFromLanguages() ||
+                   this._detectFromLocale();
 
     return detected || 'INR';
   },
@@ -815,7 +824,7 @@ const FinanceEngine = {
    * Update URL parameters without reloading page
    */
   updateUrlParams(paramsObj) {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(window.location.search);
     
     // Read current cache
     let cachedPrefs = {};

@@ -3270,6 +3270,18 @@ function setPreference(key, value) {
     const prefs = JSON.parse(localStorage.getItem('moneyinfuture_user_prefs')) || {};
     prefs[key] = value;
     localStorage.setItem('moneyinfuture_user_prefs', JSON.stringify(prefs));
+    
+    // Immediately update URL parameter if key is currency
+    if (key === 'currency' && typeof window !== 'undefined' && window.location) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('currency', value);
+      if (params.has('curr')) {
+        params.delete('curr'); // clean up deprecated 'curr' param if present
+      }
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({ path: newUrl }, '', newUrl);
+    }
+
     applyPreferences();
   } catch (e) { }
 }

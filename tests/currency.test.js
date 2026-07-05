@@ -64,6 +64,16 @@ const InternationalFormatterStrategy = globalThis.InternationalFormatterStrategy
 test('Currency Manager: default currency detection', () => {
   mockPrefs = {};
   
+  // Mock Intl.DateTimeFormat to return null timezone so language/locale detection can be isolated
+  const originalDateTimeFormat = globalThis.Intl.DateTimeFormat;
+  globalThis.Intl.DateTimeFormat = function() {
+    return {
+      resolvedOptions() {
+        return { timeZone: null };
+      }
+    };
+  };
+
   // 1. Language preference detection
   Object.defineProperty(globalThis, 'navigator', {
     value: { languages: ['en-GB'] },
@@ -81,6 +91,37 @@ test('Currency Manager: default currency detection', () => {
   // Since we cannot mock Intl.NumberFormat resolved locale easily on Node directly
   // we check that the fallback matches default logic
   assert.equal(typeof CurrencyManager.detectDefaultCurrency(), 'string');
+
+  // 3. Timezone detection explicitly
+  globalThis.Intl.DateTimeFormat = function() {
+    return {
+      resolvedOptions() {
+        return { timeZone: 'Asia/Kolkata' };
+      }
+    };
+  };
+  assert.equal(CurrencyManager.detectDefaultCurrency(), 'INR');
+
+  globalThis.Intl.DateTimeFormat = function() {
+    return {
+      resolvedOptions() {
+        return { timeZone: 'Europe/London' };
+      }
+    };
+  };
+  assert.equal(CurrencyManager.detectDefaultCurrency(), 'GBP');
+
+  globalThis.Intl.DateTimeFormat = function() {
+    return {
+      resolvedOptions() {
+        return { timeZone: 'America/New_York' };
+      }
+    };
+  };
+  assert.equal(CurrencyManager.detectDefaultCurrency(), 'USD');
+
+  // Restore original
+  globalThis.Intl.DateTimeFormat = originalDateTimeFormat;
 });
 
 test('Currency Manager: independent locale vs currency formatting', () => {
