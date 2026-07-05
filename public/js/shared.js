@@ -3332,6 +3332,14 @@ function applyPreferences() {
   if (headerCodeEl) {
     headerCodeEl.textContent = activeCode;
   }
+
+  // Sync popular-calculations page if present
+  if (document.querySelector('.currency-scenarios-group')) {
+    const currentActiveCode = (typeof CurrencyManager !== 'undefined') ? CurrencyManager.getActiveCurrency().code : activeCode;
+    document.querySelectorAll('.currency-scenarios-group').forEach(g => {
+      g.style.display = g.id === `scenarios-${currentActiveCode}` ? 'grid' : 'none';
+    });
+  }
 }
 
 function initPreferences() {
@@ -3727,7 +3735,7 @@ function hydrateCurrencyUI() {
   
   // 1. Swap input prefixes
   document.querySelectorAll('.input-prefix').forEach(el => {
-    if (['₹', '$', '£', '€'].includes(el.textContent.trim())) {
+    if (['₹', '$', '£', '€', 'A$', 'C$'].includes(el.textContent.trim())) {
       el.textContent = active.symbol;
     }
   });
