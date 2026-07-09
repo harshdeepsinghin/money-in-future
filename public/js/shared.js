@@ -4197,6 +4197,34 @@ function updateMetricColorCoding(el) {
   const rawText = el.textContent.trim();
   if (!rawText || rawText === '-') return;
 
+  // Skip formatting for non-currency metrics (e.g. percentages, durations/years/months, ages, actions)
+  const cleanText = rawText.toLowerCase();
+  const cleanId = el.id.toLowerCase();
+  if (
+    !/\d/.test(rawText) ||
+    cleanText.includes('%') ||
+    cleanText.includes('yr') ||
+    cleanText.includes('year') ||
+    cleanText.includes('month') ||
+    cleanText.includes('age') ||
+    cleanText.includes('perpetual') ||
+    cleanText.includes('depletes') ||
+    cleanId.includes('year') ||
+    cleanId.includes('age') ||
+    cleanId.includes('month') ||
+    cleanId.includes('cagr') ||
+    cleanId.includes('xirr') ||
+    cleanId.includes('percent') ||
+    cleanId.includes('rate') ||
+    cleanId.includes('ratio') ||
+    cleanId.includes('tenure') ||
+    cleanId.includes('duration') ||
+    cleanId.includes('action') ||
+    cleanId.includes('balanced')
+  ) {
+    return;
+  }
+
   const html = FinanceEngine.getColorCodedINRHtml(rawText);
   if (html) {
     el.innerHTML = html;
